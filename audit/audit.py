@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 # --- Configuration ---
-FILEPATH = 'heart_disease_uci.csv'
+FILEPATH = '../heart_disease_uci.csv'
 
 # Column names based on the description provided in the prompt
 # Note: Some UCI datasets use '?' for missing values, so we'll explicitly handle that.
