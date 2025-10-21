@@ -1,0 +1,8 @@
+# Data
+*.csv
+
+# MacOS
+.DS_Store
+
+# PyCharm
+.idea
