@@ -24,18 +24,11 @@ from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, r
 
 sns.set(color_codes=True)           # allow for use of shorthand color codes
 
-# Import necessary libraries for Google Drive interaction and file path manipulation
-from google.colab import drive
 import os
 
-# Mount Google Drive to access files
-drive.mount('/content/drive', force_remount=True)
-
-# Define the project folder path on Google Drive
-project_folder = "/content/drive/My Drive/EthicalAI"
 
 # Construct the full file path to the dataset
-file_path = os.path.join(project_folder, "heart_disease_uci_cleaned.csv")
+file_path = os.path.join("../../data/heart_disease_uci_cleaned.csv")
 
 # Read the CSV file into a pandas DataFrame
 df = pd.read_csv(file_path)
