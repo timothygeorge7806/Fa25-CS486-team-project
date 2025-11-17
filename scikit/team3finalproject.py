@@ -28,7 +28,7 @@ import os
 
 
 # Construct the full file path to the dataset
-file_path = os.path.join("../../data/heart_disease_uci_cleaned.csv")
+file_path = os.path.join("data/heart_disease_uci_cleaned.csv")
 
 # Read the CSV file into a pandas DataFrame
 df = pd.read_csv(file_path)
