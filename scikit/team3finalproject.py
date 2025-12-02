@@ -200,14 +200,43 @@ plt.ylabel("Actual")
 plt.show()
 
 """## Feature Ranking"""
+import pandas as pd
+import matplotlib.pyplot as plt # Ensure matplotlib is imported for plotting
 
-# Calculate feature importances from the trained Random Forest model
 importances = pd.Series(rf_model.feature_importances_, index=X.columns)
-# Get the top 10 most important features
-top10 = importances.sort_values(ascending=False).head(10)
+
+# Define the list of original categorical features that were one-hot encoded
+# This list comes from cell 88f77f4a, which was already executed.
+categorical_cols = [
+    "sex", "cp", "fbs", "restecg",
+    "exang", "slope", "ca", "thal"
+]
+
+# Initialize a dictionary to store aggregated importances
+aggregated_importances_dict = {}
+
+# Iterate through the calculated importances
+for feature, importance_value in importances.items():
+    found_original = False
+    for original_cat_col in categorical_cols:
+        # Check if the current feature name starts with an original categorical column name followed by '_'
+        if feature.startswith(original_cat_col + '_'):
+            # Aggregate the importance under the original categorical column name
+            aggregated_importances_dict[original_cat_col] = aggregated_importances_dict.get(original_cat_col, 0) + importance_value
+            found_original = True
+            break
+    if not found_original:
+        # If it's not a part of a one-hot encoded feature, it's a direct numerical feature
+        aggregated_importances_dict[feature] = aggregated_importances_dict.get(feature, 0) + importance_value
+
+# Convert the dictionary to a pandas Series for easy sorting and plotting
+aggregated_importances = pd.Series(aggregated_importances_dict)
+
+# Get the top 10 most important features from the aggregated importances
+top10 = aggregated_importances.sort_values(ascending=False).head(10)
 
 # Print the top 10 features and their importances
-print("Top 10 Features:")
+print("Top 10 Features (Aggregated):")
 print(top10)
 
 # Create a figure for the plot
