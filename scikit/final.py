@@ -35,7 +35,6 @@ class RandomForestPipeline:
         """
         df = pd.read_csv(self.orig_file_path)
 
-        # --- INSERT THESE LINES ---
         print(f"Original shape (All Origins): {df.shape}")
 
         # 1. Filter for only Cleveland samples
