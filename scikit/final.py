@@ -6,6 +6,7 @@ import seaborn as sns
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 from sklearn.model_selection import cross_val_score
+from sklearn.inspection import permutation_importance
 from math import sqrt
 from collections import Counter
 
@@ -284,6 +285,79 @@ class RandomForestPipeline:
 
         return predictions, probabilities, y_verif
 
+    def generate_rfex_model_summary(self, model, X, y):
+        """
+        Generates the RFEX Model Summary Table (Global Explainer).
+        Calculates MDA, Descriptive Stats, and Cohen's Distance.
+        """
+        print("\n" + "=" * 80)
+        print("RFEX MODEL SUMMARY (Global Audit)")
+        print("=" * 80)
+
+        # 1. Calculate MDA (Mean Decrease in Accuracy)
+        # We use the full X and y here since the model is final
+        print("Calculating Permutation Importance (MDA)...")
+        perm_result = permutation_importance(
+            model, X, y, n_repeats=10, random_state=self.random_state, scoring='accuracy'
+        )
+
+        # Create a DataFrame for the report
+        feature_names = X.columns
+        rfex_df = pd.DataFrame({
+            'Feature': feature_names,
+            'MDA_Value': perm_result.importances_mean
+        })
+
+        # 2. Calculate Stats (Mean/SD) and Cohen's Distance for each feature
+        # Split data by class
+        X_with_target = X.copy()
+        X_with_target['target'] = y
+
+        class_0 = X_with_target[X_with_target['target'] == 0]
+        class_1 = X_with_target[X_with_target['target'] == 1]
+
+        stats_data = []
+
+        for feature in feature_names:
+            # Stats for Class 1 (Disease / + Class)
+            mean_1 = class_1[feature].mean()
+            std_1 = class_1[feature].std()
+
+            # Stats for Class 0 (No Disease / - Class)
+            mean_0 = class_0[feature].mean()
+            std_0 = class_0[feature].std()
+
+            # 3. Calculate Cohen's Distance
+            # Formula: |u1 - u2| / sqrt((s1^2 + s2^2)/2)
+            pooled_std = sqrt((std_1 ** 2 + std_0 ** 2) / 2)
+            if pooled_std == 0:
+                cohen_d = 0
+            else:
+                cohen_d = abs(mean_1 - mean_0) / pooled_std
+
+            stats_data.append({
+                'Feature': feature,
+                'AV_SD_Class1': f"{mean_1:.2f} / {std_1:.2f}",
+                'AV_SD_Class0': f"{mean_0:.2f} / {std_0:.2f}",
+                'Cohen_Dist': cohen_d
+            })
+
+        stats_df = pd.DataFrame(stats_data)
+
+        # Merge MDA and Stats
+        final_rfex = pd.merge(rfex_df, stats_df, on='Feature')
+
+        # Sort by MDA (Rank)
+        final_rfex = final_rfex.sort_values(by='MDA_Value', ascending=False).reset_index(drop=True)
+        final_rfex['Rank'] = final_rfex.index + 1
+
+        # Reorder columns to match Prof. Petkovic's slide format
+        final_rfex = final_rfex[['Rank', 'Feature', 'MDA_Value', 'AV_SD_Class1', 'AV_SD_Class0', 'Cohen_Dist']]
+
+        print(final_rfex.to_string(index=False))
+
+        return final_rfex
+
 
 class Plotter:
     """
@@ -399,6 +473,64 @@ class Plotter:
         plt.tight_layout()
         plt.show()
 
+    @staticmethod
+    def plot_rfex_dashboard(rfex_df, top_n=10):
+        """
+        Visualizes the RFEX Audit results:
+        1. Feature Importance (MDA)
+        2. Class Separation (Cohen's Distance)
+        3. Clinical Comparison (Mean values for Sick vs Healthy)
+        """
+        # Take top N features
+        df_plot = rfex_df.head(top_n).copy()
+
+        # --- Plot 1 & 2: Importance and Trustworthiness ---
+        fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+        # Subplot 1: MDA (Ranking)
+        sns.barplot(x="MDA_Value", y="hue", data=df_plot, ax=axes[0], palette="viridis", legend=False)
+        axes[0].set_title(f"RFEX Rank: Top {top_n} Features (MDA)", fontsize=14)
+        axes[0].set_xlabel("Mean Decrease in Accuracy (Importance)")
+
+        # Subplot 2: Cohen's Distance (Separability)
+        # Color code: Green = Good (>0.8), Yellow = Moderate (>0.5), Red = Poor (<0.5)
+        colors = ['#2ecc71' if x >= 0.8 else '#f1c40f' if x >= 0.5 else '#e74c3c' for x in df_plot['Cohen_Dist']]
+        sns.barplot(x="Cohen_Dist", y="Feature", data=df_plot, ax=axes[1], palette=colors)
+
+        # Add threshold lines
+        axes[1].axvline(0.8, color='black', linestyle='--', alpha=0.5, label='Strong Separation (0.8)')
+        axes[1].axvline(0.5, color='gray', linestyle=':', alpha=0.5, label='Moderate (0.5)')
+        axes[1].set_title("RFEX Trustworthiness: Class Separation (Cohen's D)", fontsize=14)
+        axes[1].set_xlabel("Cohen's Distance (Higher is Better)")
+        axes[1].set_ylabel("")  # Remove y-label to avoid clutter
+        axes[1].legend(loc='lower right')
+
+        plt.tight_layout()
+        plt.show()
+
+        # --- Plot 3: Clinical Comparison (Means) ---
+        # Parse the text columns "Mean / SD" back into numbers
+        def parse_val(s):
+            try:
+                return float(s.split(' / ')[0])
+            except:
+                return 0.0
+
+        df_plot['Mean_Sick'] = df_plot['AV_SD_Class1'].apply(parse_val)
+        df_plot['Mean_Healthy'] = df_plot['AV_SD_Class0'].apply(parse_val)
+
+        # Melt for plotting
+        df_melt = df_plot.melt(id_vars=['Feature'], value_vars=['Mean_Sick', 'Mean_Healthy'],
+                               var_name='Group', value_name='Mean Value')
+
+        plt.figure(figsize=(12, 6))
+        sns.barplot(x="Mean Value", y="Feature", hue="Group", data=df_melt,
+                    palette={'Mean_Sick': '#e74c3c', 'Mean_Healthy': '#3498db'})
+        plt.title("Clinical Logic Check: Feature Averages (Sick vs. Healthy)", fontsize=14)
+        plt.grid(axis='x', alpha=0.3)
+        plt.tight_layout()
+        plt.show()
+
 
 def main():
     """
@@ -473,13 +605,17 @@ def main():
     predictions, probabilities, y_verif = pipeline.run_time_predict(final_model)
     plotter.plot_verification_results(predictions, probabilities, y_verif)
 
+    print("\nStep 7: Running RFEX Audit (Ethics & Trustworthiness)...")
+    # Pass the final model and the full training data (X, y)
+    rfex_df = pipeline.generate_rfex_model_summary(final_model, X, y)
+    plotter.plot_rfex_dashboard(rfex_df)
+
     print("\n" + "=" * 80)
     print("Pipeline completed successfully!")
     print("=" * 80)
 
     # Return the final model for further use
     return final_model, pipeline.X
-
 
 if __name__ == '__main__':
     final_trained_model, X = main()
