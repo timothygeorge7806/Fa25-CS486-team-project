@@ -2,7 +2,7 @@ import pandas as pd
 
 # Configuration
 INPUT_FILEPATH = '../data/heart_disease_uci.csv'
-OUTPUT_FILEPATH = '../data/heart_disease_uci_cleaned.csv'
+OUTPUT_FILEPATH = '../data/heart_disease_uci_cleaned_w_dataset.csv'
 
 # Define feature types for appropriate imputation strategy
 CONTINUOUS_FEATURES = ['age', 'trestbps', 'chol', 'thalch', 'oldpeak']
@@ -46,9 +46,9 @@ def clean_dataset(input_filepath, output_filepath):
     columns_to_drop = []
 
     # Check 'dataset' column specifically
-    if 'dataset' in df_cleaned.columns:
-        print("'dataset' column displays where the data is from -- not relevant. Dropping it.")
-        columns_to_drop.append('dataset')
+    # if 'dataset' in df_cleaned.columns:
+    #     print("'dataset' column displays where the data is from -- not relevant. Dropping it.")
+    #     columns_to_drop.append('dataset')
 
     # Drop 'id' column as it's just an identifier
     if 'id' in df_cleaned.columns:
