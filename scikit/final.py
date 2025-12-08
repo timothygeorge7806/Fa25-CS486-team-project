@@ -488,7 +488,7 @@ class Plotter:
         fig, axes = plt.subplots(1, 2, figsize=(16, 6))
 
         # Subplot 1: MDA (Ranking)
-        sns.barplot(x="MDA_Value", y="hue", data=df_plot, ax=axes[0], palette="viridis", legend=False)
+        sns.barplot(x="MDA_Value", y="Feature", data=df_plot, ax=axes[0], palette="viridis")
         axes[0].set_title(f"RFEX Rank: Top {top_n} Features (MDA)", fontsize=14)
         axes[0].set_xlabel("Mean Decrease in Accuracy (Importance)")
 
@@ -536,7 +536,7 @@ def main():
     """
     Main execution block that orchestrates the entire pipeline.
     """
-    DATA_FILE = "../data/heart_disease_uci_cleaned_w_dataset.csv"
+    DATA_FILE = "../data/heart_disease_uci_cleaned.csv"
 
     # Initialize pipeline and plotter
     pipeline = RandomForestPipeline(orig_file_path=DATA_FILE, random_state=42, k_folds=3)
